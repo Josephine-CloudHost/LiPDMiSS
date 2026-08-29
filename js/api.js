@@ -11,14 +11,14 @@ const LiPDMiSS_API = (function () {
   // =========================================================================
   // Paste your Google Apps Script Web App URL below after deploying:
   // Example: "https://script.google.com/macros/s/AKfycbx.../exec"
-  const BACKEND_URL = localStorage.getItem('lipBackendUrl') || '';
+  const BACKEND_URL = localStorage.getItem('https://script.google.com/macros/s/AKfycbwlLBU9DFsFJzX7yJP2lDhUmvVfkZcttS04jx3AorHxHYsJKOySO1-DqK0oo1K7cnFP/exec') || '';
 
   function getUrl() {
-    return localStorage.getItem('lipBackendUrl') || BACKEND_URL;
+    return localStorage.getItem('https://script.google.com/macros/s/AKfycbwlLBU9DFsFJzX7yJP2lDhUmvVfkZcttS04jx3AorHxHYsJKOySO1-DqK0oo1K7cnFP/exec') || BACKEND_URL;
   }
 
   function setBackendUrl(url) {
-    localStorage.setItem('lipBackendUrl', url.trim());
+    localStorage.setItem('https://script.google.com/macros/s/AKfycbwlLBU9DFsFJzX7yJP2lDhUmvVfkZcttS04jx3AorHxHYsJKOySO1-DqK0oo1K7cnFP/exec', url.trim());
   }
 
   function isBackendConfigured() {
