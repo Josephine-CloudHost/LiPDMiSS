@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LiPDMiSS — Student, Academic Score & Finance Portal</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <img src="assets/lipdmiss-logo.png" alt="LiPDMiSS Logo">
+    <div>
+      <b>LiPDMiSS</b>
+      <small> Annual Academic, Teacher & Finance Portal</small>
+    </div>
+  </div>
+  <nav>
+    <a href="#" onclick="show('home')">Home</a>
+    <a href="#" onclick="show('studentLogin')">Student Portal</a>
+    <a href="#" onclick="show('teacherLogin')">Teacher Portal</a>
+    <a href="#" onclick="show('adminLogin')">Admin Portal</a>
+  </nav>
+</header>
+
+<main>
+  <!-- HOME SECTION -->
+  <section id="home" class="page active">
+    <div class="hero">
+      <img class="heroLogo" src="assets/lipdmiss-logo.png" alt="LiPDMiSS Logo">
+      <h1>Liberty Prayer Deliverance Ministries School System</h1>
+      <h2>LiPDMiSS Student, Score & Finance Portal</h2>
+      <p class="mottoText">FAITH • EXCELLENCE • DISCIPLINE • PURPOSE</p>
+      <p>Official school portal for academic score reports, grade rankings, teacher submissions, and tuition tracking from Nursery to Grade 12.</p>
+      <div class="heroButtons">
+        <button onclick="show('studentLogin')">🎓 Student Results & Account</button>
+        <button onclick="show('teacherLogin')">👨‍🏫 Teacher Grade Submission</button>
+        <button onclick="show('adminLogin')">🔐 Admin Management</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDENT LOGIN SECTION -->
+  <section id="studentLogin" class="page">
+    <div class="box loginBox">
+      <button class="light" onclick="show('home')">← Home</button>
+      <h2>Student Portal Login</h2>
+      <p class="muted">Enter your Student ID and Password to view your Academic Results & Tuition Records.</p>
+      <label>Student ID
+        <input id="sid" placeholder="e.g. STU-1001">
+      </label>
+      <label>Password
+        <input id="spass" type="password" placeholder="Enter password">
+      </label>
+      <button onclick="studentLogin()">Open My Student Portal</button>
+      <p id="smsg" class="error"></p>
+    </div>
+  </section>
+
+  <!-- TEACHER LOGIN SECTION -->
+  <section id="teacherLogin" class="page">
+    <div class="box loginBox">
+      <button class="light" onclick="show('home')">← Home</button>
+      <h2>Teacher Portal Login</h2>
+      <p class="muted">Enter your Teacher ID and Password to access your assigned class grade book.</p>
+      <label>Teacher ID / Username
+        <input id="tuser" placeholder="e.g. TCH-101">
+      </label>
+      <label>Password
+        <input id="tpass" type="password" placeholder="Enter password">
+      </label>
+      <button onclick="teacherLogin()">Open Teacher Dashboard</button>
+      <p id="tmsg" class="error"></p>
+    </div>
+  </section>
+
+  <!-- TEACHER DASHBOARD -->
+  <section id="teacher" class="page">
+    <div class="toolbar">
+      <div>
+        <h2 id="teacherGreeting">Teacher Dashboard</h2>
+        <small class="muted" id="teacherSubtitle">Class Grade Submission</small>
+      </div>
+      <div class="adminActions">
+        <button class="light" onclick="show('home')">Logout</button>
+      </div>
+    </div>
+
+    <!-- ACTIVE PERIOD STATUS BANNER -->
+    <div class="box statusBox">
+      <h3>📅 Periodic Grading Submission Window (<span id="teacherActiveYear"></span>)</h3>
+      <p class="muted">Admin controls which period is currently unlocked. You can add missing grades for open periods. Existing recorded grades are locked to prevent alterations.</p>
+      <div id="teacherPermissionsStatus" class="permBadgesGrid"></div>
+    </div>
+
+    <!-- BATCH SCORE ENTRY TABLE -->
+    <div class="box">
+      <div class="tableControls">
+        <div>
+          <label>Select Subject to Grade:
+            <select id="teacherSubjectSelect" onchange="renderTeacherGradeTable()"></select>
+          </label>
+        </div>
+        <div>
+          <button onclick="teacherSaveGrades()">💾 Submit Class Grades</button>
+        </div>
+      </div>
+
+      <div class="tableWrap">
+        <table class="scoreTable teacherTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>STUDENT</th>
+              <th>1st PD</th>
+              <th>2nd PD</th>
+              <th>3rd PD</th>
+              <th>1st EXAM</th>
+              <th>4th PD</th>
+              <th>5th PD</th>
+              <th>6th PD</th>
+              <th>2nd EXAM</th>
+              <th>YEAR AVG</th>
+              <th>GRADE</th>
+            </tr>
+          </thead>
+          <tbody id="teacherGradeTableBody"></tbody>
+        </table>
+      </div>
+      <div class="teacherTableFooter">
+        <p class="muted"><small>🔒 Gray badges with lock icons indicate previously submitted grades (locked). Only empty inputs for Admin-opened periods can be filled.</small></p>
+        <button onclick="teacherSaveGrades()">💾 Submit Class Grades</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDENT DASHBOARD (REPORT CARD + FINANCE) -->
+  <section id="student" class="page">
+    <div class="toolbar">
+      <button onclick="show('home')">⌂ Home</button>
+      <div class="dashActions">
+        <button onclick="printGrade()">🖨 Print / Save Official PDF Report</button>
+      </div>
+    </div>
+    <div id="gradeSheet" class="sheet"></div>
+  </section>
+
+  <!-- ADMIN LOGIN SECTION -->
+  <section id="adminLogin" class="page">
+    <div class="box loginBox">
+      <button class="light" onclick="show('home')">← Home</button>
+      <h2>Admin Portal Login</h2>
+      <p class="muted">Authorized school administrators only.</p>
+      <label>Username
+        <input id="auser" placeholder="Username">
+      </label>
+      <label>Password
+        <input id="apass" type="password" placeholder="Password">
+      </label>
+      <button onclick="adminLogin()">Open Admin Dashboard</button>
+      <p id="amsg" class="error"></p>
+    </div>
+  </section>
+
+  <!-- ADMIN DASHBOARD -->
+  <section id="admin" class="page">
+    <div class="toolbar">
+      <div>
+        <h2>Admin Dashboard</h2>
+        <small class="muted">Liberty Prayer Deliverance Ministries School System</small>
+      </div>
+      <div class="adminActions">
+        <div class="yearPicker">
+          <span>Active Year:</span>
+          <select id="adminSchoolYear" onchange="changeSchoolYear(this.value)"></select>
+        </div>
+        <button onclick="show('home')">Logout</button>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button id="tabBtnStudents" class="activeTab" onclick="adminTab('students')">👨‍🎓 Student Management</button>
+      <button id="tabBtnTeachers" onclick="adminTab('teachers')">👨‍🏫 Teacher Management & Permissions</button>
+      <button id="tabBtnSubjects" onclick="adminTab('subjects')">📚 Subject Log</button>
+      <button id="tabBtnCloud" onclick="adminTab('cloud')">☁️ Cloud / Google Sheets Backend</button>
+    </div>
+
+    <!-- STUDENTS TAB -->
+    <div id="studentsTab">
+      <div class="box addStudentBox">
+        <h3>➕ Add New Student Record</h3>
+        <div class="grid">
+          <label>Student ID *
+            <input id="newId" placeholder="e.g. STU-1001">
+          </label>
+          <label>Full Name *
+            <input id="newName" placeholder="First Middle Last">
+          </label>
+          <label>Class / Grade *
+            <select id="newGrade"></select>
+          </label>
+          <label>Academic Year *
+            <select id="newAcademicYear"></select>
+          </label>
+          <label>Student Password *
+            <input id="newPass" placeholder="Login password">
+          </label>
+          <label>Date of Birth *
+            <input id="newDob" type="date">
+          </label>
+          <label>Role in School
+            <input id="newRole" placeholder="e.g. Student Prefect, Student">
+          </label>
+          <label>Behaviour Assessment
+            <input id="newBehaviour" placeholder="e.g. Excellent, Good, Fair">
+          </label>
+          <label>Guardian / Parent Name
+            <input id="newGuardian" placeholder="Guardian Full Name">
+          </label>
+          <label>Guardian Phone Number
+            <input id="newPhone" placeholder="e.g. +231-770-000000">
+          </label>
+          <label class="fullSpan">Passport Size Photo
+            <input id="newPhoto" type="file" accept="image/*">
+          </label>
+        </div>
+        <button onclick="addStudent()">Add Student Record</button>
+      </div>
+
+      <!-- SEARCH BAR & DIRECTORY -->
+      <div class="directoryHeader">
+        <h3>📋 Enrolled Students (<span id="studentCount">0</span>)</h3>
+        <label class="studentSearch">
+          <span>Search Student:</span>
+          <input id="studentSearch" type="search" placeholder="Search by name, ID, or class..." oninput="searchStudents(this.value)">
+        </label>
+      </div>
+      <div id="studentList"></div>
+    </div>
+
+    <!-- TEACHER MANAGEMENT & PERMISSIONS TAB -->
+    <div id="teachersTab" class="hidden">
+      <!-- PERIODIC PERMISSIONS MANAGER -->
+      <div class="box permissionBox">
+        <h3>🔓 Periodic Grading Submission Permissions</h3>
+        <p class="muted">Select which assessment periods teachers are permitted to submit grades for. Teachers can only add grades for open periods; previously entered grades are permanently locked against teacher edits.</p>
+        
+        <div class="permGrid">
+          <label class="permCheck">
+            <input id="perm_p1" type="checkbox"> 1st Period
+          </label>
+          <label class="permCheck">
+            <input id="perm_p2" type="checkbox"> 2nd Period
+          </label>
+          <label class="permCheck">
+            <input id="perm_p3" type="checkbox"> 3rd Period
+          </label>
+          <label class="permCheck highlightPerm">
+            <input id="perm_exam1" type="checkbox"> 1st Semester Exam
+          </label>
+          <label class="permCheck">
+            <input id="perm_p4" type="checkbox"> 4th Period
+          </label>
+          <label class="permCheck">
+            <input id="perm_p5" type="checkbox"> 5th Period
+          </label>
+          <label class="permCheck">
+            <input id="perm_p6" type="checkbox"> 6th Period
+          </label>
+          <label class="permCheck highlightPerm">
+            <input id="perm_exam2" type="checkbox"> 2nd Semester Exam
+          </label>
+        </div>
+
+        <div class="permActions">
+          <button onclick="saveGradingPermissions()">💾 Save Periodic Permissions</button>
+          <button class="light" onclick="toggleAllPermissions(true)">Unlock All Periods</button>
+          <button class="light" onclick="toggleAllPermissions(false)">Lock All Periods</button>
+        </div>
+      </div>
+
+      <!-- ADD TEACHER -->
+      <div class="box">
+        <h3>➕ Add Teacher & Assign Class</h3>
+        <div class="grid">
+          <label>Teacher ID / Username *
+            <input id="newTeacherId" placeholder="e.g. TCH-101">
+          </label>
+          <label>Teacher Full Name *
+            <input id="newTeacherName" placeholder="e.g. Mr. David Kollie">
+          </label>
+          <label>Assigned Class / Grade *
+            <select id="newTeacherGrade"></select>
+          </label>
+          <label>Teacher Login Password *
+            <input id="newTeacherPass" placeholder="Login password">
+          </label>
+          <label class="fullSpan">Phone / Contact
+            <input id="newTeacherPhone" placeholder="e.g. +231-770-000000">
+          </label>
+        </div>
+        <button onclick="addTeacher()">Add Teacher Record</button>
+      </div>
+
+      <!-- TEACHERS LIST -->
+      <div class="box">
+        <h3>📋 Enrolled Teachers (<span id="teacherCount">0</span>)</h3>
+        <div id="teacherList"></div>
+      </div>
+    </div>
+
+    <!-- SUBJECTS TAB -->
+    <div id="subjectsTab" class="hidden">
+      <div class="box">
+        <h3>📚 Subject Management</h3>
+        <p class="muted">Manage subjects offered across all grades in LiPDMiSS.</p>
+        <div class="flexRow">
+          <input id="newSubject" placeholder="Enter new subject name (e.g. Geography)">
+          <button onclick="addSubject()">Add Subject</button>
+        </div>
+      </div>
+      <div class="box">
+        <h3>Current Subjects</h3>
+        <div id="subjectList"></div>
+      </div>
+    </div>
+
+    <!-- CLOUD / GOOGLE APPS SCRIPT SYNC TAB -->
+    <div id="cloudTab" class="hidden">
+      <div class="box">
+        <h3>☁️ Google Apps Script & Google Sheets Backend</h3>
+        <p class="muted">Connect this portal to your deployed Google Apps Script Web App to store all student records, grades, teacher accounts, and payments in Google Sheets & Google Drive.</p>
+        <label>Google Apps Script Web App URL
+          <input id="backendUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+        </label>
+        <div class="cloudActions">
+          <button onclick="saveBackendUrl()">Save Backend URL</button>
+          <button class="light" onclick="testBackendConnection()">Test Connection</button>
+          <button class="light" onclick="initCloudDatabase()">Initialize Sheets Tables</button>
+          <button onclick="syncLocalToCloud()">Sync All Local Data to Google Sheets</button>
+        </div>
+        <p id="cloudStatus" class="muted"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACADEMIC SCORES MANAGEMENT PAGE (ADMIN ONLY) -->
+  <section id="records" class="page">
+    <div class="toolbar">
+      <button onclick="show('admin')">← Back to Dashboard</button>
+      <h2>Academic Scores Management (Admin Master Override)</h2>
+    </div>
+    <div id="recordHeader"></div>
+    <div class="box">
+      <h3>Add / Update Student Subject Scores (<span id="scoreActiveYear"></span>)</h3>
+      <label>Select Subject:
+        <select id="recordSubject"></select>
+      </label>
+      <h4 class="semTitle">1st Semester Scores</h4>
+      <div class="periodGrid">
+        <label>1st Period
+          <input id="p1" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+        <label>2nd Period
+          <input id="p2" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+        <label>3rd Period
+          <input id="p3" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+        <label>1st Sem Exam
+          <input id="exam1" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+      </div>
+      <h4 class="semTitle">2nd Semester Scores</h4>
+      <div class="periodGrid">
+        <label>4th Period
+          <input id="p4" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+        <label>5th Period
+          <input id="p5" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+        <label>6th Period
+          <input id="p6" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+        <label>2nd Sem Exam
+          <input id="exam2" type="number" min="0" max="100" placeholder="0 - 100">
+        </label>
+      </div>
+      <div class="scoreFormActions">
+        <button onclick="saveRecord()">Save Subject Scores</button>
+        <button class="light" onclick="clearForm()">Clear Score Inputs</button>
+      </div>
+    </div>
+    <div class="box">
+      <h3>Recorded Subjects for this Academic Year</h3>
+      <div id="recordsList"></div>
+    </div>
+  </section>
+
+  <!-- TUITION & REGISTRATION MANAGEMENT PAGE -->
+  <section id="financePage" class="page">
+    <div class="toolbar">
+      <button onclick="show('admin')">← Back to Dashboard</button>
+      <h2>Tuition & Registration Records</h2>
+    </div>
+    <div id="financeRecordHeader"></div>
+    <div class="box financeBox">
+      <h3>💳 Tuition & Registration — Admin Only</h3>
+      <p class="muted">Payments are record-only. No payment is processed online on this website.</p>
+      <div class="grid">
+        <label>Registration Fee (one-time)
+          <input id="registrationFee" type="number" min="0" step="0.01" placeholder="0.00">
+        </label>
+        <label>Registration Payment Date
+          <input id="registrationDate" type="date">
+        </label>
+        <label>Tuition Total for Academic Year
+          <input id="tuitionTotal" type="number" min="0" step="0.01" placeholder="0.00">
+        </label>
+        <label>Currency / Unit
+          <input id="currency" placeholder="e.g. USD or LRD">
+        </label>
+      </div>
+      <h4>Installment Breakdown</h4>
+      <div class="installmentGrid">
+        <label>1st Installment
+          <input id="inst1" type="number" min="0" step="0.01" placeholder="0.00">
+        </label>
+        <label>2nd Installment
+          <input id="inst2" type="number" min="0" step="0.01" placeholder="0.00">
+        </label>
+        <label>3rd Installment
+          <input id="inst3" type="number" min="0" step="0.01" placeholder="0.00">
+        </label>
+        <label>4th Installment
+          <input id="inst4" type="number" min="0" step="0.01" placeholder="0.00">
+        </label>
+      </div>
+      <div id="financeCalc" class="financeCalc"></div>
+      <div class="financeActions">
+        <label class="check">
+          <input id="registrationPaid" type="checkbox"> Registration paid (one-time)
+        </label>
+        <div>
+          <button onclick="saveFinance()">Save Payment Records</button>
+          <button class="light" onclick="clearFinance()">Clear Payment Records</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>© 2026 Liberty Prayer Deliverance Ministries School System (LiPDMiSS) • Student, Teacher & Finance Portal</p>
+</footer>
+
+<script src="js/script.js"></script>
+</body>
+</html>
