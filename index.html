@@ -246,7 +246,7 @@
       <div class="box permissionBox">
         <h3>🔓 Periodic Grading Submission Permissions</h3>
         <p class="muted">Select which assessment periods teachers are permitted to submit grades for. Teachers can only add grades for open periods; previously entered grades are permanently locked against teacher edits.</p>
-        
+
         <div class="permGrid">
           <label class="permCheck">
             <input id="perm_p1" type="checkbox"> 1st Period
@@ -333,15 +333,17 @@
         <h3>☁️ Google Apps Script & Google Sheets Backend</h3>
         <p class="muted">Connect this portal to your deployed Google Apps Script Web App to store all student records, grades, teacher accounts, and payments in Google Sheets & Google Drive.</p>
         <label>Google Apps Script Web App URL
-          <input id="backendUrlInput" placeholder="https://script.google.com/macros/s/AKfycbwlLBU9DFsFJzX7yJP2lDhUmvVfkZcttS04jx3AorHxHYsJKOySO1-DqK0oo1K7cnFP/exec">
+          <input id="backendUrlInput" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec">
         </label>
         <div class="cloudActions">
           <button onclick="saveBackendUrl()">Save Backend URL</button>
           <button class="light" onclick="testBackendConnection()">Test Connection</button>
           <button class="light" onclick="initCloudDatabase()">Initialize Sheets Tables</button>
           <button onclick="syncLocalToCloud()">Sync All Local Data to Google Sheets</button>
+          <button class="light" onclick="pullFromCloud()">⬇️ Pull Latest Data From Google Sheets</button>
         </div>
         <p id="cloudStatus" class="muted"></p>
+        <p class="muted"><small>💡 Once a Backend URL is saved here, every Add/Edit/Delete you do (students, scores, finance, teachers, subjects, permissions) is automatically pushed to Google Sheets in real time. Use "Pull Latest" when opening the portal on a new device/browser to bring down what's already stored in the Sheet.</small></p>
       </div>
     </div>
   </section>
@@ -456,6 +458,7 @@
   <p>© 2026 Liberty Prayer Deliverance Ministries School System (LiPDMiSS) • Student, Teacher & Finance Portal</p>
 </footer>
 
+<script src="js/api.js"></script>
 <script src="js/script.js"></script>
 </body>
 </html>
