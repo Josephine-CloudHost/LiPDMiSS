@@ -1,29 +1,35 @@
 /**
  * LiPDMiSS Frontend API Client for Google Apps Script Backend
- * 
+ *
  * Liberty Prayer Deliverance Ministries School System
  * Connects index.html / js/script.js to Google Sheets Web App
+ *
+ * FIXED v3.1.0:
+ *  - localStorage now uses a real, constant key ("lipBackendUrl") instead of
+ *    using the Apps Script URL itself as the key (which meant the saved URL
+ *    could never be found again).
+ *  - Added wrapper methods for every backend action that Code.gs supports
+ *    (teacher login, grade submission, permissions, subjects, etc.) — the
+ *    previous version only covered about half of them.
  */
 
 const LiPDMiSS_API = (function () {
   // =========================================================================
   // CONFIGURATION
   // =========================================================================
-  // Paste your Google Apps Script Web App URL below after deploying:
-  // Example: "https://script.google.com/macros/s/AKfycbx.../exec"
-  const BACKEND_URL = localStorage.getItem('https://script.google.com/macros/s/AKfycbwlLBU9DFsFJzX7yJP2lDhUmvVfkZcttS04jx3AorHxHYsJKOySO1-DqK0oo1K7cnFP/exec') || '';
+  const STORAGE_KEY = 'lipBackendUrl';
 
   function getUrl() {
-    return localStorage.getItem('https://script.google.com/macros/s/AKfycbwlLBU9DFsFJzX7yJP2lDhUmvVfkZcttS04jx3AorHxHYsJKOySO1-DqK0oo1K7cnFP/exec') || BACKEND_URL;
+    return (localStorage.getItem(STORAGE_KEY) || '').trim();
   }
 
   function setBackendUrl(url) {
-    localStorage.setItem('https://script.google.com/macros/s/AKfycbwlLBU9DFsFJzX7yJP2lDhUmvVfkZcttS04jx3AorHxHYsJKOySO1-DqK0oo1K7cnFP/exec', url.trim());
+    localStorage.setItem(STORAGE_KEY, (url || '').trim());
   }
 
   function isBackendConfigured() {
     const url = getUrl();
-    return url && url.startsWith('http');
+    return !!url && url.startsWith('http');
   }
 
   // =========================================================================
@@ -32,7 +38,7 @@ const LiPDMiSS_API = (function () {
   async function request(action, data = {}) {
     const url = getUrl();
     if (!url) {
-      throw new Error('Backend URL is not configured. Please set your Google Apps Script Web App URL.');
+      throw new Error('Backend URL is not configured. Please set your backend Web App URL in the Cloud tab.');
     }
 
     const payload = { action, ...data };
@@ -51,17 +57,13 @@ const LiPDMiSS_API = (function () {
       throw new Error(`Server returned status ${response.status} (${response.statusText})`);
     }
 
-    const result = await response.json();
-    return result;
+    return await response.json();
   }
 
   // =========================================================================
-  // API METHODS
+  // API METHODS — one per backend action in Code.gs
   // =========================================================================
 
-  /**
-   * Health Check
-   */
   async function ping() {
     const url = getUrl();
     if (!url) return { success: false, message: 'No backend URL configured.' };
@@ -69,81 +71,87 @@ const LiPDMiSS_API = (function () {
     return await res.json();
   }
 
-  /**
-   * Initialize Spreadsheet Tables
-   */
   async function initDatabase() {
     return await request('initDatabase');
   }
 
-  /**
-   * Admin Login Verification
-   */
+  // ---- Auth ----
   async function adminLogin(username, password) {
     return await request('adminLogin', { username, password });
   }
-
-  /**
-   * Student Login Verification
-   */
   async function studentLogin(id, password) {
     return await request('studentLogin', { id, password });
   }
+  async function teacherLogin(id, password) {
+    return await request('teacherLogin', { id, password });
+  }
 
-  /**
-   * Get all student records with finance data
-   */
+  // ---- Students ----
   async function getAllStudents() {
     return await request('getAllStudents');
   }
-
-  /**
-   * Get a single student by ID
-   */
   async function getStudentById(id, password = '') {
     return await request('getStudentById', { id, password });
   }
-
-  /**
-   * Add a new student record
-   */
   async function addStudent(student) {
     return await request('addStudent', { student });
   }
-
-  /**
-   * Update student details
-   */
   async function updateStudent(student) {
     return await request('updateStudent', { student });
   }
-
-  /**
-   * Delete a student
-   */
   async function deleteStudent(id) {
     return await request('deleteStudent', { id });
   }
 
-  /**
-   * Save tuition and registration records
-   */
+  // ---- Scores ----
+  async function saveRecord(id, year, record) {
+    return await request('saveRecord', { id, year, record });
+  }
+  async function deleteRecord(id, year, subject) {
+    return await request('deleteRecord', { id, year, subject });
+  }
+  async function teacherSubmitGrades(teacherId, year, subject, grades) {
+    return await request('teacherSubmitGrades', { teacherId, year, subject, grades });
+  }
+
+  // ---- Finance ----
   async function saveFinance(id, finance) {
     return await request('saveFinance', { id, finance });
   }
-
-  /**
-   * Reset / clear finance records
-   */
   async function clearFinance(id) {
     return await request('clearFinance', { id });
   }
 
-  /**
-   * Sync local storage students into Google Sheets
-   */
-  async function syncAll(studentsList) {
-    return await request('syncAll', { students: studentsList });
+  // ---- Teachers ----
+  async function getTeachers() {
+    return await request('getTeachers');
+  }
+  async function addTeacher(teacher) {
+    return await request('addTeacher', { teacher });
+  }
+  async function deleteTeacher(id) {
+    return await request('deleteTeacher', { id });
+  }
+
+  // ---- Permissions ----
+  async function getPermissions() {
+    return await request('getPermissions');
+  }
+  async function savePermissions(permissions) {
+    return await request('savePermissions', { permissions });
+  }
+
+  // ---- Subjects ----
+  async function getSubjects() {
+    return await request('getSubjects');
+  }
+  async function saveSubjects(subjects) {
+    return await request('saveSubjects', { subjects });
+  }
+
+  // ---- Bulk sync ----
+  async function syncAll(payload) {
+    return await request('syncAll', payload);
   }
 
   return {
@@ -154,13 +162,24 @@ const LiPDMiSS_API = (function () {
     initDatabase,
     adminLogin,
     studentLogin,
+    teacherLogin,
     getAllStudents,
     getStudentById,
     addStudent,
     updateStudent,
     deleteStudent,
+    saveRecord,
+    deleteRecord,
+    teacherSubmitGrades,
     saveFinance,
     clearFinance,
+    getTeachers,
+    addTeacher,
+    deleteTeacher,
+    getPermissions,
+    savePermissions,
+    getSubjects,
+    saveSubjects,
     syncAll
   };
 })();
