@@ -1,6 +1,10 @@
 /**
  * LiPDMiSS Student, Teacher, Score & Finance Portal - Unified Frontend Logic
  * Liberty Prayer Deliverance Ministries School System
+ *
+ * FIXED: every mutating action now also pushes to the Google Apps Script
+ * backend (when a Backend URL is configured), and the app hydrates from the
+ * backend on load. Local storage is kept as an offline cache / fallback.
  */
 
 // =============================================================================
@@ -97,6 +101,40 @@ function save() {
   localStorage.lipTeachers = JSON.stringify(teachers);
   localStorage.lipGradingPerms = JSON.stringify(gradingPermissions);
   localStorage.lipSchoolYear = activeSchoolYear;
+}
+
+// -----------------------------------------------------------------------
+// CLOUD SYNC HELPERS
+// A tiny wrapper so every mutating action can "fire and forget" a push to
+// the backend without duplicating try/catch everywhere, and so the admin
+// gets visible feedback (via cloudStatus, when that panel exists) if a
+// push fails — e.g. bad URL, script not deployed, no internet.
+// -----------------------------------------------------------------------
+
+function backendReady() {
+  return window.LiPDMiSS_API && LiPDMiSS_API.isBackendConfigured();
+}
+
+function setCloudStatus(html) {
+  const el = document.getElementById("cloudStatus");
+  if (el) el.innerHTML = html;
+}
+
+async function pushToCloud(label, fn) {
+  if (!backendReady()) return; // no backend configured yet — local-only mode
+  try {
+    const res = await fn();
+    if (res && res.success === false) {
+      console.warn(`Cloud sync (${label}) responded with an error:`, res.message);
+      setCloudStatus(`<span class="error"><b>${label} sync issue:</b> ${res.message}</span>`);
+    } else {
+      setCloudStatus(`<span class="pass"><b>${label}</b> synced to Google Sheets.</span>`);
+    }
+    return res;
+  } catch (err) {
+    console.error(`Cloud sync (${label}) failed:`, err);
+    setCloudStatus(`<span class="error"><b>${label} sync failed:</b> ${err.message}. Your data is still saved locally — check your Backend URL in the Cloud tab and your internet connection.</span>`);
+  }
 }
 
 function safeFinance(s) {
@@ -372,6 +410,9 @@ function teacherSaveGrades() {
   const inputs = document.querySelectorAll(".teacherScoreInput");
   let updatedCount = 0;
 
+  // Build a batch payload for the backend's anti-tamper teacherSubmitGrades action
+  const gradesBySid = {};
+
   inputs.forEach(input => {
     const valStr = input.value.trim();
     if (valStr === "") return;
@@ -402,6 +443,8 @@ function teacherSaveGrades() {
     if (rec[period] === "" || rec[period] === null || rec[period] === undefined) {
       rec[period] = val;
       updatedCount++;
+      if (!gradesBySid[sId]) gradesBySid[sId] = { studentId: sId };
+      gradesBySid[sId][period] = val;
     }
   });
 
@@ -411,6 +454,14 @@ function teacherSaveGrades() {
 
   save();
   renderTeacherGradeTable();
+
+  // Push the batch to the backend using its own anti-tamper logic (it will
+  // only fill genuinely-missing scores, same rule as here, so it's safe to
+  // send even if something changed locally in the meantime).
+  pushToCloud("Teacher grade submission", () =>
+    LiPDMiSS_API.teacherSubmitGrades(currentTeacher.id, activeSchoolYear, sub, Object.values(gradesBySid))
+  );
+
   alert(`Successfully submitted ${updatedCount} grade(s) for ${sub}. Newly submitted grades are now locked.`);
 }
 
@@ -431,6 +482,7 @@ function saveGradingPermissions() {
     if (el) gradingPermissions[key] = el.checked;
   });
   save();
+  pushToCloud("Grading permissions", () => LiPDMiSS_API.savePermissions(gradingPermissions));
   alert("Periodic grading submission permissions updated successfully!");
 }
 
@@ -441,6 +493,7 @@ function toggleAllPermissions(enable) {
     gradingPermissions[key] = enable;
   });
   save();
+  pushToCloud("Grading permissions", () => LiPDMiSS_API.savePermissions(gradingPermissions));
   alert(enable ? "All assessment periods are now OPEN for teacher submission." : "All assessment periods are now LOCKED.");
 }
 
@@ -454,7 +507,7 @@ function addTeacher() {
     return alert("Teacher ID already exists.");
   }
 
-  const newTeacher = {
+  const newTeacherObj = {
     id: cleanId,
     name: newTeacherName.value.trim(),
     grade: newTeacherGrade.value,
@@ -462,12 +515,15 @@ function addTeacher() {
     phone: newTeacherPhone.value.trim() || ""
   };
 
-  teachers.push(newTeacher);
+  teachers.push(newTeacherObj);
   save();
 
   [newTeacherId, newTeacherName, newTeacherPass, newTeacherPhone].forEach(x => x.value = "");
   renderTeachers();
-  alert(`Teacher ${newTeacher.name} assigned to ${newTeacher.grade} successfully.`);
+
+  pushToCloud("Teacher", () => LiPDMiSS_API.addTeacher(newTeacherObj));
+
+  alert(`Teacher ${newTeacherObj.name} assigned to ${newTeacherObj.grade} successfully.`);
 }
 
 function renderTeachers() {
@@ -495,9 +551,11 @@ function renderTeachers() {
 
 function deleteTeacher(i) {
   if (confirm(`Remove teacher account "${teachers[i].name}" (${teachers[i].id})?`)) {
+    const removedId = teachers[i].id;
     teachers.splice(i, 1);
     save();
     renderTeachers();
+    pushToCloud("Teacher removal", () => LiPDMiSS_API.deleteTeacher(removedId));
   }
 }
 
@@ -548,6 +606,11 @@ function addStudent() {
     [newId, newName, newPass, newRole, newBehaviour, newDob, newGuardian, newPhone].forEach(x => x.value = "");
     newPhoto.value = "";
     renderStudents();
+
+    // Push to Google Sheets / Drive backend. Note: large base64 photos are
+    // uploaded to Drive server-side by Code.gs and swapped for a share link.
+    pushToCloud("Student", () => LiPDMiSS_API.addStudent(newStudent));
+
     alert(`Student ${newStudent.name} added successfully.`);
   };
 
@@ -609,9 +672,11 @@ function searchStudents(name) {
 
 function deleteStudent(i) {
   if (confirm(`Delete student "${students[i].name}" (${students[i].id}) and all associated academic & finance records?`)) {
+    const removedId = students[i].id;
     students.splice(i, 1);
     save();
     renderStudents();
+    pushToCloud("Student removal", () => LiPDMiSS_API.deleteStudent(removedId));
   }
 }
 
@@ -697,6 +762,9 @@ function saveRecord() {
   clearForm();
   renderRecords();
   renderStudents();
+
+  pushToCloud("Score record", () => LiPDMiSS_API.saveRecord(s.id, activeSchoolYear, r));
+
   alert(`Scores for ${sub} saved for ${activeSchoolYear}.`);
 }
 
@@ -716,10 +784,15 @@ function editRecord(i) {
 
 function removeRecord(i) {
   if (confirm("Delete this subject score record?")) {
-    getRecords(students[currentIndex], activeSchoolYear).splice(i, 1);
+    const s = students[currentIndex];
+    const rec = getRecords(s, activeSchoolYear)[i];
+    getRecords(s, activeSchoolYear).splice(i, 1);
     save();
     renderRecords();
     renderStudents();
+    if (rec) {
+      pushToCloud("Score record removal", () => LiPDMiSS_API.deleteRecord(s.id, activeSchoolYear, rec.subject));
+    }
   }
 }
 
@@ -739,6 +812,7 @@ function addSubject() {
   save();
   newSubject.value = "";
   renderSubjects();
+  pushToCloud("Subjects", () => LiPDMiSS_API.saveSubjects(subjects));
 }
 
 function renderSubjects() {
@@ -755,6 +829,7 @@ function deleteSubject(i) {
     subjects.splice(i, 1);
     save();
     renderSubjects();
+    pushToCloud("Subjects", () => LiPDMiSS_API.saveSubjects(subjects));
   }
 }
 
@@ -833,12 +908,16 @@ function saveFinance() {
   save();
   loadFinance();
   renderStudents();
+
+  pushToCloud("Finance record", () => LiPDMiSS_API.saveFinance(s.id, f));
+
   alert("Tuition and registration records saved successfully.");
 }
 
 function clearFinance() {
   if (!confirm("Clear registration and tuition payment records for this student?")) return;
-  students[currentIndex].finance = {
+  const s = students[currentIndex];
+  s.finance = {
     registrationFee: 0,
     registrationPaid: false,
     registrationDate: "",
@@ -849,6 +928,7 @@ function clearFinance() {
   save();
   loadFinance();
   renderStudents();
+  pushToCloud("Finance reset", () => LiPDMiSS_API.clearFinance(s.id));
 }
 
 // =============================================================================
@@ -1040,80 +1120,132 @@ function printGrade() {
 }
 
 // =============================================================================
-// GOOGLE APPS SCRIPT BACKEND CLOUD SYNC
+// GOOGLE APPS SCRIPT BACKEND CLOUD SYNC (Cloud tab)
 // =============================================================================
 
 function loadCloudSettings() {
   if (document.getElementById("backendUrlInput")) {
-    backendUrlInput.value = localStorage.getItem("lipBackendUrl") || "";
+    backendUrlInput.value = LiPDMiSS_API.getUrl();
   }
 }
 
 function saveBackendUrl() {
   const url = backendUrlInput.value.trim();
-  localStorage.setItem("lipBackendUrl", url);
-  cloudStatus.textContent = "Backend URL saved successfully.";
+  LiPDMiSS_API.setBackendUrl(url);
+  setCloudStatus('<span class="pass">Backend URL saved. Every Add/Edit/Delete will now sync automatically.</span>');
 }
 
 async function testBackendConnection() {
-  const url = localStorage.getItem("lipBackendUrl");
-  if (!url) return alert("Please enter and save your Google Apps Script Web App URL first.");
-  cloudStatus.textContent = "Connecting to Google Apps Script...";
+  if (!LiPDMiSS_API.isBackendConfigured()) {
+    return alert("Please enter and save your Google Apps Script Web App URL first.");
+  }
+  setCloudStatus("Connecting to Google Apps Script...");
   try {
-    const res = await fetch(`${url}?action=ping`, { method: "GET", redirect: "follow" });
-    const data = await res.json();
+    const data = await LiPDMiSS_API.ping();
     if (data.success) {
-      cloudStatus.innerHTML = `<span class="pass"><b>Online:</b> ${data.message} (${data.timestamp})</span>`;
+      setCloudStatus(`<span class="pass"><b>Online:</b> ${data.message} (${data.timestamp})</span>`);
     } else {
-      cloudStatus.innerHTML = `<span class="error"><b>Error:</b> ${data.message}</span>`;
+      setCloudStatus(`<span class="error"><b>Error:</b> ${data.message}</span>`);
     }
   } catch (err) {
-    cloudStatus.innerHTML = `<span class="error"><b>Connection failed:</b> ${err.message}</span>`;
+    setCloudStatus(`<span class="error"><b>Connection failed:</b> ${err.message}. Check that the Apps Script is deployed as a Web App with access set to "Anyone", and that you copied the /exec URL (not /dev).</span>`);
   }
 }
 
 async function initCloudDatabase() {
-  const url = localStorage.getItem("lipBackendUrl");
-  if (!url) return alert("Please enter and save your Google Apps Script Web App URL first.");
-  cloudStatus.textContent = "Initializing Google Sheets tables...";
+  if (!LiPDMiSS_API.isBackendConfigured()) {
+    return alert("Please enter and save your Google Apps Script Web App URL first.");
+  }
+  setCloudStatus("Initializing Google Sheets tables...");
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "initDatabase" })
-    });
-    const data = await res.json();
-    cloudStatus.innerHTML = `<span class="pass"><b>Result:</b> ${data.message}</span>`;
+    const data = await LiPDMiSS_API.initDatabase();
+    setCloudStatus(`<span class="pass"><b>Result:</b> ${data.message}</span>`);
     alert(data.message);
   } catch (err) {
-    cloudStatus.innerHTML = `<span class="error"><b>Init failed:</b> ${err.message}</span>`;
+    setCloudStatus(`<span class="error"><b>Init failed:</b> ${err.message}</span>`);
   }
 }
 
 async function syncLocalToCloud() {
-  const url = localStorage.getItem("lipBackendUrl");
-  if (!url) return alert("Please enter and save your Google Apps Script Web App URL first.");
+  if (!LiPDMiSS_API.isBackendConfigured()) {
+    return alert("Please enter and save your Google Apps Script Web App URL first.");
+  }
   if (!confirm(`Sync ${students.length} students, ${teachers.length} teachers, and permissions to Google Sheets?`)) return;
 
-  cloudStatus.textContent = "Syncing local database to Google Sheets...";
+  setCloudStatus("Syncing local database to Google Sheets...");
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "syncAll",
-        students: students,
-        teachers: teachers,
-        subjects: subjects,
-        permissions: gradingPermissions,
-        activeSchoolYear: activeSchoolYear
-      })
+    const data = await LiPDMiSS_API.syncAll({
+      students: students,
+      teachers: teachers,
+      subjects: subjects,
+      permissions: gradingPermissions,
+      activeSchoolYear: activeSchoolYear
     });
-    const data = await res.json();
-    cloudStatus.innerHTML = `<span class="pass"><b>Sync Success:</b> ${data.message}</span>`;
+    setCloudStatus(`<span class="pass"><b>Sync Success:</b> ${data.message}</span>`);
     alert("Sync completed successfully!");
   } catch (err) {
-    cloudStatus.innerHTML = `<span class="error"><b>Sync failed:</b> ${err.message}</span>`;
+    setCloudStatus(`<span class="error"><b>Sync failed:</b> ${err.message}</span>`);
+  }
+}
+
+/**
+ * Pull the latest students, teachers, subjects, and permissions down from
+ * Google Sheets and replace the local cache with them. Use this when
+ * opening the portal on a new browser/device that doesn't have local data
+ * yet, or to recover from a mismatch between two devices.
+ */
+async function pullFromCloud() {
+  if (!LiPDMiSS_API.isBackendConfigured()) {
+    return alert("Please enter and save your Google Apps Script Web App URL first.");
+  }
+  if (!confirm("This will REPLACE your local student, teacher, and subject data with what's currently stored in Google Sheets. Continue?")) return;
+
+  setCloudStatus("Pulling latest data from Google Sheets...");
+  try {
+    const [studentsRes, teachersRes, subjectsRes, permsRes] = await Promise.all([
+      LiPDMiSS_API.getAllStudents(),
+      LiPDMiSS_API.getTeachers(),
+      LiPDMiSS_API.getSubjects(),
+      LiPDMiSS_API.getPermissions()
+    ]);
+
+    if (studentsRes.success) students = studentsRes.students;
+    if (teachersRes.success) teachers = teachersRes.teachers;
+    if (subjectsRes.success) subjects = subjectsRes.subjects;
+    if (permsRes.success) gradingPermissions = permsRes.permissions;
+
+    students.forEach(s => safeFinance(s));
+    save();
+
+    renderStudents();
+    renderTeachers();
+    loadPermissionsForm();
+
+    setCloudStatus('<span class="pass">Pulled latest data from Google Sheets successfully.</span>');
+    alert("Local data refreshed from Google Sheets.");
+  } catch (err) {
+    setCloudStatus(`<span class="error"><b>Pull failed:</b> ${err.message}</span>`);
+  }
+}
+
+/**
+ * On page load, if a backend URL is already saved and local storage is
+ * empty (first run on this browser), automatically hydrate from the Sheet
+ * so the portal isn't blank.
+ */
+async function autoHydrateOnLoad() {
+  if (!backendReady()) return;
+  if (students.length > 0 || teachers.length > defaultTeachers.length) return; // already have local data
+  try {
+    const res = await LiPDMiSS_API.getAllStudents();
+    if (res.success && res.students.length) {
+      students = res.students;
+      students.forEach(s => safeFinance(s));
+      save();
+      renderStudents();
+    }
+  } catch (err) {
+    console.warn("Auto-hydrate from backend failed (this is fine if you're offline or first-time setting up):", err.message);
   }
 }
 
@@ -1125,3 +1257,4 @@ initSchoolYears();
 renderStudents();
 loadPermissionsForm();
 renderTeachers();
+autoHydrateOnLoad();
