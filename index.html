@@ -93,18 +93,22 @@ label { font-size: 13px; font-weight: bold; color: #334155; display: block; }
    scales cleanly from small Android phones through tablets to desktop. */
 .gatewayBackdrop {
   position: relative;
+  min-height: 78vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: clamp(16px, 3vw, 32px);
-  padding: clamp(28px, 6vw, 55px) clamp(12px, 4vw, 20px) clamp(40px, 7vw, 70px);
+  padding: clamp(40px, 8vw, 90px) clamp(12px, 4vw, 20px);
   margin-top: 25px;
   overflow: hidden;
   background: linear-gradient(135deg, #f6a55c 0%, #f0879a 35%, #d9a0b8 60%, #b9a8c9 100%);
 }
-.gatewayBackdrop .hero { position: relative; background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(6px); }
 
 .gwSplitCard {
   position: relative;
   max-width: 860px;
-  margin: clamp(20px, 4vw, 34px) auto 0;
+  margin: 0 auto;
+  width: 100%;
   display: flex;
   flex-wrap: wrap;
   background: #fff;
@@ -368,14 +372,6 @@ footer { text-align: center; padding: 30px 15px; color: #64748b; font-size: 13px
        ========================================================================= -->
   <section id="gateway" class="page active">
     <div class="gatewayBackdrop">
-      <div class="hero">
-        <img class="heroLogo" src="assets/lipdmiss-logo.png" alt="LiPDMiSS Logo" onerror="this.style.display='none'">
-        <h1>Liberty Prayer Deliverance Ministries School System</h1>
-        <h2>LiPDMiSS Student, Score &amp; Finance Portal</h2>
-        <p class="mottoText">FAITH • EXCELLENCE • DISCIPLINE • PURPOSE</p>
-        <p>Official school portal for academic score reports, grade rankings, teacher submissions, and tuition tracking from Nursery to Grade 12.</p>
-      </div>
-
       <div class="gwSplitCard">
         <!-- LEFT: login form panel (also hosts the Forgot Password view) -->
         <div class="gwFormPanel">
