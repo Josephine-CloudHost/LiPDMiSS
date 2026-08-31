@@ -708,7 +708,7 @@ footer { text-align: center; padding: 30px 15px; color: #64748b; font-size: 13px
 
 const APP_CONFIG = {
   // Paste the deployed Apps Script Web App "/exec" URL here.
-  API_URL: 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzI287cLf12O9LZ8UHPaDMgMsL5U36edSd8B96TySG2_L3GC7lQSwAN76G9Ly40Ud30/exec',
   DEFAULT_ACADEMIC_YEAR: '2026-2027',
   SCHOOL_NAME: 'Liberty Prayer Deliverance Ministries School System',
   MOTTO: 'FAITH • EXCELLENCE • DISCIPLINE • PURPOSE'
@@ -772,7 +772,7 @@ function apiConfigured() {
  */
 async function api(action, data) {
   if (!apiConfigured()) {
-    throw new Error('Backend not configured yet. Paste your Apps Script Web App URL into APP_CONFIG.API_URL in the script.');
+    throw new Error('Backend not configured yet. Paste your Web App backend URL into APP_CONFIG.API_URL in the script.');
   }
   const payload = Object.assign({ action: action }, data || {});
   const res = await fetch(APP_CONFIG.API_URL, {
